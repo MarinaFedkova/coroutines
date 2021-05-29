@@ -27,11 +27,15 @@ fun main() {
                 val posts = getPosts(client)
                     .map { post ->
                         async {
+                            val author = getAuthor(client, post.authorId)
+                            val comments = getComments(client, post.id)
+                                .map { comment ->
+                                    async {
+                                        CommentWithAuthor(comment, getAuthor(client, comment.authorId))
+                                    }
+                                }.awaitAll()
                             PostWithAuthorWithComments(
-                                post, getAuthor(client, post.authorId),
-                                getComments(client, post.id).map { comment ->
-                                    CommentWithAuthor(comment, getAuthor(client, comment.authorId))
-                                })
+                                post, author, comments)
                         }
                     }.awaitAll()
                 println(posts)
@@ -41,8 +45,33 @@ fun main() {
         }
     }
     Thread.sleep(30_000L)
-}
 
+}
+//fun main() {
+//    with(CoroutineScope(EmptyCoroutineContext)) {
+//        launch {
+//            try {
+//                val posts = getPosts(client)
+//                    .map { post ->
+//                        async {
+//                            val author = getAuthor(client, post.authorId)
+//                            val comments = getComments(client, post.id)
+//                            PostWithAuthorWithComments(
+//                                post, author,
+//                                comments.map { comment ->
+//                                    CommentWithAuthor(comment, getAuthor(client, comment.authorId))
+//                                })
+//                        }
+//                    }.awaitAll()
+//                println(posts)
+//            } catch (e: Exception) {
+//                e.printStackTrace()
+//            }
+//        }
+//    }
+//    Thread.sleep(30_000L)
+//
+//}
 suspend fun OkHttpClient.apiCall(url: String): Response {
     return suspendCoroutine { continuation ->
         Request.Builder()
